@@ -1,2 +1,11 @@
 *.class
 *.log
+/bin/
+/project/target/
+/project/project/target/
+/target/
+.cache-main
+.cache-tests
+.classpath
+.project
+/.settings/
