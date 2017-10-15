@@ -56,6 +56,28 @@ object CastlesWithString {
 }
 
 
+object CastlesWithMainAndSubCode {
+  
+  sealed trait Castle extends HasMainAndSubCodeValue
+  case object edo extends Castle
+  {
+    override val value = (1->1)
+  }
+  case object osaka extends Castle
+  {
+    override val value = (1->2)
+  }
+  case object azuchi extends Castle
+  {
+    override val value = (2->1)
+  }
+  case object other extends Castle
+  {
+    override val value = (99->99)
+  }
+}
+
+
 object TestJackson
 {
 
@@ -89,6 +111,21 @@ object TestJackson
   ,castle:Option[CastlesWithString.Castle]
   )
   
+
+  case class Parent05(name:String,militaryCommanders:Seq[MilitaryCommander05])
+  
+  //@JsonIgnoreProperties(ignoreUnknown=true)
+  case class MilitaryCommander05(name:Option[String],age:Option[Int]
+  ,castle:CastlesWithMainAndSubCode.Castle
+  )
+  
+  
+  case class Parent06(name:String,militaryCommanders:Seq[MilitaryCommander06])
+  
+  //@JsonIgnoreProperties(ignoreUnknown=true)
+  case class MilitaryCommander06(name:Option[String],age:Option[Int]
+  ,castle:Option[CastlesWithMainAndSubCode.Castle]
+  )
   
   
 }
@@ -183,7 +220,8 @@ class TestJackson extends WordSpec with MustMatchers{
     
     val customModule = new SimpleModule("CustomSerializer")
     .addSerializer(clazz, new CaseObjectSerializerWithValue)
-    .addDeserializer(clazz, new CaseObjectDeserializerWithStringValue(clazz,`type`))
+    .addDeserializer(clazz, new CaseObjectDeserializerWithValue(clazz,classOf[String],`type`))
+    //.addDeserializer(clazz, new CaseObjectDeserializerWithStringValue(clazz,`type`))
           
     val mapper=new ObjectMapper()
       .enable(SerializationFeature.INDENT_OUTPUT)
@@ -261,7 +299,7 @@ class TestJackson extends WordSpec with MustMatchers{
     
     val customModule = new SimpleModule("CustomSerializer")
     .addSerializer(clazz, new CaseObjectSerializerWithValue)
-    .addDeserializer(clazz, new CaseObjectDeserializerWithStringValue(clazz,`type`))
+    .addDeserializer(clazz, new CaseObjectDeserializerWithValue(clazz,classOf[String],`type`))
           
     val mapper=new ObjectMapper(new YAMLFactory)
       .enable(SerializationFeature.INDENT_OUTPUT)
@@ -339,7 +377,7 @@ class TestJackson extends WordSpec with MustMatchers{
         ,"militaryCommanders"->Seq(
         Map("name"->"秀吉","age"->"3","castle"->"大阪")
         ,Map("name"->"信長","castle"->"江戸")
-        ,Map("age"->49) //,"castle"->"清州")
+        ,Map("age"->49,"castle"->"清州")
         )) 
 
       
@@ -355,7 +393,7 @@ class TestJackson extends WordSpec with MustMatchers{
       //result.militaryCommanders(2).castle must ===(azuchi)
       result.militaryCommanders(2).castle must ===(null)
       
-      json1 must ===(json2)
+      json1 must !==(json2)
       
     }
     s"${Code4} CastleをOption型で" in
@@ -381,13 +419,165 @@ class TestJackson extends WordSpec with MustMatchers{
       //result.militaryCommanders(2).castle must ===(azuchi)
       result.militaryCommanders(2).castle must ===(None)
       
-      json1 must ===(json2)
+      json1 must !==(json2)
       
     }
     
     
   }
   
+  "code4/Instance to json to Instance with HasIntValue" should{
+    import Castles._
+    
+    val clazz = classOf[Castle]
+    val `type` = scala.reflect.runtime.universe.typeOf[Castles.type]
+    
+    val customModule = new SimpleModule("CustomSerializer")
+    .addSerializer(clazz, new CaseObjectSerializerWithValue)
+    .addDeserializer(clazz, new CaseObjectDeserializerWithValue(clazz,classOf[Int],`type`))
+          
+    val mapper=new ObjectMapper()
+      .enable(SerializationFeature.INDENT_OUTPUT)
+      .setSerializationInclusion(JsonInclude.Include.NON_NULL)
+      .setSerializationInclusion(JsonInclude.Include.NON_ABSENT)
+      .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+      .registerModule(customModule)
+      .registerModule(DefaultScalaModule)
+      
+    val Code1 = "code4の1"  
+    val Code2 = "code4の2"  
+    s"${Code1} Castleを非Option型で" in
+    {
+      val source = Parent01(name=s"リスト${Code1}",militaryCommanders=Seq(
+        MilitaryCommander01(name=Some("秀吉"),age=Some(62),castle=osaka)    
+        ,MilitaryCommander01(name=Some("家康"),age=Some(76),castle=edo)    
+        ,MilitaryCommander01(name=Some("信長"),age=None,castle=azuchi)    
+        ,MilitaryCommander01(name=Some("足軽その１"),age=None,castle=other)    
+      )) 
+      
+      val json1 = mapper.writeValueAsString(source)
+      println(s"${Code1}-json:${json1}")
+      val result = mapper.readValue(json1, classOf[Parent01])
+      println(s"${Code1}-instance:${result}")
+      val json2 = mapper.writeValueAsString(result)
+      println(s"${Code1}-json:${json2}")
+      
+      result.militaryCommanders(0).castle must ===(osaka)
+      result.militaryCommanders(1).castle must ===(edo)
+      result.militaryCommanders(2).castle must ===(azuchi)
+      result.militaryCommanders(3).castle must ===(other)
+      
+      json1 must ===(json2)
+      
+    }
+    
+    s"${Code2} CastleをOption型で" in
+    {
+      val source = Parent02(name=s"リスト${Code2}",militaryCommanders=Seq(
+        MilitaryCommander02(name=Some("秀吉"),age=Some(62),castle=Some(osaka))    
+        ,MilitaryCommander02(name=Some("家康"),age=Some(76),castle=Some(edo))    
+        ,MilitaryCommander02(name=Some("信長"),age=None,castle=Some(azuchi))    
+        ,MilitaryCommander02(name=Some("足軽その１"),age=None,castle=None)    
+      )) 
+      
+      val json1 = mapper.writeValueAsString(source)
+      println(s"${Code2}-json:${json1}")
+      val result = mapper.readValue(json1, classOf[Parent02])
+      println(s"${Code2}-instance:${result}")
+      val json2 = mapper.writeValueAsString(result)
+      println(s"${Code2}-json:${json2}")
+      
+      result.militaryCommanders(0).castle.get must ===(osaka)
+      result.militaryCommanders(1).castle.get must ===(edo)
+      result.militaryCommanders(2).castle.get must ===(azuchi)
+      result.militaryCommanders(3).castle must ===(None)
+      
+      json1 must ===(json2)
+      
+    }
+    
+  }
 
+  
+  "code5/Instance to json to Instance with HasStringValue" should{
+    import CastlesWithMainAndSubCode._
+    
+    val clazz = classOf[CastlesWithMainAndSubCode.Castle]
+    val `type` = scala.reflect.runtime.universe.typeOf[CastlesWithMainAndSubCode.type]
+    
+    val customModule = new SimpleModule("CustomSerializer")
+    .addSerializer(clazz, new CaseObjectSerializerWithValue)
+    .addDeserializer(clazz, new CaseObjectDeserializerWithValue(clazz,classOf[(Int,Int)],`type`))
+    //.addDeserializer(clazz, new CaseObjectDeserializerWithStringValue(clazz,`type`))
+          
+    val mapper=new ObjectMapper()
+      .enable(SerializationFeature.INDENT_OUTPUT)
+      .setSerializationInclusion(JsonInclude.Include.NON_NULL)
+      //
+      // https://github.com/fasterxml/jackson-databind/issues/811
+      //
+      .setSerializationInclusion(JsonInclude.Include.NON_ABSENT)
+      //
+      // https://stackoverflow.com/questions/5455014/ignoring-new-fields-on-json-objects-using-jackson
+      //
+      .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+      .registerModule(customModule)
+      .registerModule(DefaultScalaModule)
+      
+    val Code1 = "code5の1"  
+    val Code2 = "code5の2"  
+    s"${Code1} Castleを非Option型で" in
+    {
+      val source = Parent05(name=s"リスト${Code1}",militaryCommanders=Seq(
+        MilitaryCommander05(name=Some("秀吉"),age=Some(62),castle=osaka)    
+        ,MilitaryCommander05(name=Some("家康"),age=Some(76),castle=edo)    
+        ,MilitaryCommander05(name=Some("信長"),age=None,castle=azuchi)    
+        ,MilitaryCommander05(name=Some("足軽その１"),age=None,castle=other)    
+      )) 
+      
+      val json1 = mapper.writeValueAsString(source)
+      println(s"${Code1}-json:${json1}")
+      val result = mapper.readValue(json1, classOf[Parent05])
+      println(s"${Code1}-instance:${result}")
+      val json2 = mapper.writeValueAsString(result)
+      println(s"${Code1}-json:${json2}")
+      
+      result.militaryCommanders(0).castle must ===(osaka)
+      result.militaryCommanders(1).castle must ===(edo)
+      result.militaryCommanders(2).castle must ===(azuchi)
+      result.militaryCommanders(3).castle must ===(other)
+      
+      json1 must ===(json2)
+      
+    }
+    
+    s"${Code2} CastleをOption型で" in
+    {
+      val source = Parent06(name=s"リスト${Code2}",militaryCommanders=Seq(
+        MilitaryCommander06(name=Some("秀吉"),age=Some(62),castle=Some(osaka))    
+        ,MilitaryCommander06(name=Some("家康"),age=Some(76),castle=Some(edo))    
+        ,MilitaryCommander06(name=Some("信長"),age=None,castle=Some(azuchi))    
+        ,MilitaryCommander06(name=Some("足軽その１"),age=None,castle=None)    
+      )) 
+      
+      val json1 = mapper.writeValueAsString(source)
+      println(s"${Code2}-json:${json1}")
+      val result = mapper.readValue(json1, classOf[Parent06])
+      println(s"${Code2}-instance:${result}")
+      val json2 = mapper.writeValueAsString(result)
+      println(s"${Code2}-json:${json2}")
+      
+      result.militaryCommanders(0).castle.get must ===(osaka)
+      result.militaryCommanders(1).castle.get must ===(edo)
+      result.militaryCommanders(2).castle.get must ===(azuchi)
+      result.militaryCommanders(3).castle must ===(None)
+      
+      json1 must ===(json2)
+      
+    }
+    
+  }
+  
+  
   
 }
